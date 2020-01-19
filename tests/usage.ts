@@ -34,9 +34,76 @@ will support both mongo DB and MySQL and have a converter to convert SQL to Mong
 */
 interface IMongoDocument { [key: string]: any }
 
-const documentToClass = (collectionName: string, doc: IMongoDocument, outputDir: string) => {
-    
+const getTypeFromValue = (value: any): string => {
+    let type: string = 'any'
+    if (Array.isArray(value)) {
+        type = 'any[]'
+        if (value.length === 1) {
+            if (typeof value[0] === 'object') {
+                type = getTypeFromValue(value[0]) + '[][]'
+            } else {
+                type = typeof value[0] + '[]'
+            }
+        } else if (value.length > 1) {
+            type = typeof value[0]
+            if (type === 'object') { 
+                type = getTypeFromValue(value[0]) + '[]'
+            } else {
+                for (let i = 1; i < value.length; i++) {
+                    if (typeof value[i] !== type) {
+                        type = 'any[]'
+                        break
+                    }
+                }
+            }
+            if (type.indexOf('[]') === -1) { type += '[]' }
+        }
+    } else {
+        type = toString.call(value).replace('[object ', '').replace(']', '')
+        if (type === 'Object') { type = 'any' }
+    }
+    return type
 }
+
+// If multiple documents, populate as many fields as possible
+const interfaceFromDocument = (collectionName: string, docs: any) => {
+    let docInterface: string = `interface ${collectionName} {\n`
+    let document: IMongoDocument = {}
+    docs.forEach((doc: any) => { document = Object.assign(document, doc) })
+    Object.keys(document).forEach((key: string) => {
+        let type: string = typeof document[key]
+        if (type === 'object') {
+            type = getTypeFromValue(document[key])
+        }
+        docInterface += `\t${key}: ${type},\n`
+    })
+    docInterface += `}`
+    return docInterface
+}
+
+const documentToClass = (collectionName: string, docs: IMongoDocument[], outputDir: string) => {
+    let interfaceFromDoc: any = interfaceFromDocument(collectionName, docs)
+    console.log(interfaceFromDoc)
+}
+
+/* Tests for various formats for documentToClass */
+let docs: any = [
+    {
+        test: 'Hello world',
+    },
+    {
+        date: new Date(),
+        blah: ['test','blah'],
+        arg: [[1, 2], [3, 4]],
+        argB: [{test: 1, abc: 2,}, {test: 1, abc: 3}],
+        bool: false,
+        num: 5.5,
+        str: 'String!',
+        arr: [5, 4, 3],
+    }
+]
+
+documentToClass('test', docs, '')
 
 const fileToClass = (path: string, interfaceOrImport: string, prefix: string = 'I'): any[] => {
     const contents = fs.readFileSync(path).toString()
