@@ -1,3 +1,8 @@
+/** 
+ * Created by Daniel Moxon
+ * GitHub: https://github.com/dcmox/moxy-orm
+ * **/
+
 const fs = require('fs')
 
 interface IMongoDocument { [key: string]: any }
