@@ -36,7 +36,7 @@ describe('MoxyORM Test Suite', () => {
                 {author_id: 3, comment: 'Keep the content coming!'}
             ]
         }]
-        let result = testSuite.documentToClass('Post', doc, './tests/')
+        let result = testSuite.documentToClass('Post', doc, './tests/', './lib')
         assert.equal(result, true)
     })
     it('Should be able to determine the relative or absolute path based on a source and destination', () => {

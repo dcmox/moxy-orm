@@ -74,18 +74,15 @@ export const importPathToSrc = (src: string, dest: string): string => {
     return pathNodes.join('/')
 }
 
-export const interfacesToClass = (src: string) => {
+export const interfacesToClass = (src: string, dest?: string, lib?: string) => {
     const path: string = src.substring(-1) === '/' ? src : `${src}/`
-    let dest: any = path.split('/')
-    dest.pop()
-    let folder: string = dest.pop()
-    dest = dest.join('/')
+    if (dest === undefined) { dest = `${src}/gen` }
+    if (lib === undefined) { lib = `${src}` }
     let interfaces: any[] = fs.readdirSync(src)
-
     interfaces.forEach((f: string) => {
-        const imp: string = `${folder}/${f.replace('.ts', '')}`
+        //const imp: string = `${folder}/${f.replace('.ts', '')}`
         const fp: string = `${src}/${f}`
-        const contents: any[] = fileToClass(fp, imp)
+        const contents: any[] = fileToClass(fp, dest || '', lib || '')
         contents.forEach((content: any) => {
             fs.writeFileSync(`${dest}/${content.dest}`, content.data)
         })
@@ -153,9 +150,10 @@ export const interfaceFromDocument = (collectionName: string, docs: any) => {
     return docInterface
 }
 
-export const documentToClass = (collectionName: string, docs: IMongoDocument[], outputDir: string): boolean => {
+export const documentToClass = (collectionName: string, docs: IMongoDocument[], outputDir: string, lib?: string): boolean => {
     let interfaceFromDoc: string = interfaceFromDocument('I' + collectionName, docs)
-    let data = contentsToClass(interfaceFromDoc, interfaceFromDoc, 'I')
+    lib = importPathToSrc(lib || '', outputDir)
+    let data = contentsToClass(interfaceFromDoc, interfaceFromDoc, lib || '', 'I')
     if (data[0]) {
         fs.writeFileSync(`${outputDir}/${collectionName}.ts`, data[0].data)
         return true
@@ -163,12 +161,16 @@ export const documentToClass = (collectionName: string, docs: IMongoDocument[], 
     return false
 }
 
-export const fileToClass = (path: string, interfaceOrImport: string, prefix: string = 'I'): IGenerateClassOutput[] => {
+export const fileToClass = (path: string, interfaceOrDestination: string, lib: string, prefix: string = 'I'): IGenerateClassOutput[] => {
     const contents = fs.readFileSync(path).toString()
-    return contentsToClass(contents, interfaceOrImport, prefix)
+    if (interfaceOrDestination.indexOf('{') === -1) {
+        lib = importPathToSrc(lib, interfaceOrDestination)
+        interfaceOrDestination = importPathToSrc(path.replace(/.ts|.js/, ''), interfaceOrDestination)
+    }
+    return contentsToClass(contents, interfaceOrDestination, lib, prefix)
 }
 
-export const contentsToClass = (contents: string, interfaceOrImport: string, prefix: string = ''): IGenerateClassOutput[] => {
+export const contentsToClass = (contents: string, interfaceOrDestination: string, lib: string, prefix: string = ''): IGenerateClassOutput[] => {
     let r: RegExp = new RegExp(REGEX_INTERFACE)
     let cls: any
     let output: any[] = []
@@ -177,7 +179,7 @@ export const contentsToClass = (contents: string, interfaceOrImport: string, pre
         let [, className, props] = cls
         if (prefix && className[0] === prefix) { className = className.slice(1) }
 
-        const out: IGenerateClassOutput = generateClass(className, props, interfaceOrImport, cls[1])
+        const out: IGenerateClassOutput = generateClass(className, props, interfaceOrDestination, lib, cls[1])
         output.push(out)
     }
 
@@ -197,16 +199,19 @@ interface IGenerateClassOutput {
 
 
 /* Allow path to be defined to export */
-export const generateClass = (className: string, props: string, interfaceOrImport?: string, iClassName?: string): IGenerateClassOutput => {
+export const generateClass = (className: string, props: string, interfaceOrDestination?: string, lib?: string, iClassName?: string): IGenerateClassOutput => {
     if (!iClassName) { iClassName = className }
     let out: IGenerateClassOutput
-    let dbModelImport: string = `import { DBModel } from './DBModel'\n`
-    if (interfaceOrImport && ~interfaceOrImport.indexOf('{')) {
-        out = { dest: className + '.ts', data: dbModelImport + `\n${interfaceOrImport}\n\n` }
+    let libImport: string = ''
+    if (lib) {
+        libImport = `import { DBModel } from '${lib}/DBModel'\n`
+    }
+    if (interfaceOrDestination && ~interfaceOrDestination.indexOf('{')) {
+        out = { dest: className + '.ts', data: libImport + `\n${interfaceOrDestination}\n\n` }
     } else {
-        out = interfaceOrImport
-        ? { dest: className + '.ts', data: dbModelImport + `import { ${iClassName} } from '${interfaceOrImport}'\n\n` }
-        : { dest: className + '.ts', data: dbModelImport }
+        out = interfaceOrDestination
+        ? { dest: className + '.ts', data: libImport + `import { ${iClassName} } from '${interfaceOrDestination}'\n\n` }
+        : { dest: className + '.ts', data: libImport }
     }
 
     // extends DBModel 
