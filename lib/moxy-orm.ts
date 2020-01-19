@@ -92,14 +92,13 @@ export const interfacesToClass = (src: string, dest?: string, lib?: string) => {
 
 const REGEX_INTERFACE = /interface ([^{]+)? {([^}]+)}/g
 
-// support reading database table and converting to class/interface as well? auto-detect types.
 // support manual updates to classes -> if re-running the generator, find the extra functions and merge them into the new class.
 // try and support changes to the existing functions if possible. Maybe have functionality to allow data to be formatted like:
 // getFnFormatted() and automatically prefer formatted Function if available.
 
 /* 
-but I'm going to have it read database tables and generate classes / interfaces as wel
-will support both mongo DB and MySQL and have a converter to convert SQL to MongoDB and vice versa
+    but I'm going to have it read database tables and generate classes / interfaces as wel
+    will support both mongo DB and MySQL and have a converter to convert SQL to MongoDB and vice versa
 */
 interface IMongoDocument { [key: string]: any }
 
@@ -191,26 +190,19 @@ interface IGenerateClassOutput {
     data: string
 }
 
-/* 
-    Need path to define LIB folder. need to figure out relative IMPORT path to any given file, eg:
-    FileA:
-    import { blah } from '../../path/to/lib/'
-*/
-
-
 /* Allow path to be defined to export */
 export const generateClass = (className: string, props: string, interfaceOrDestination?: string, lib?: string, iClassName?: string): IGenerateClassOutput => {
     if (!iClassName) { iClassName = className }
     let out: IGenerateClassOutput
     let libImport: string = ''
     if (lib) {
-        libImport = `import { DBModel } from '${lib}/DBModel'\n`
+        libImport = addLine(`import { DBModel } from '${lib}/DBModel'`)
     }
     if (interfaceOrDestination && ~interfaceOrDestination.indexOf('{')) {
         out = { dest: className + '.ts', data: libImport + `\n${interfaceOrDestination}\n\n` }
     } else {
         out = interfaceOrDestination
-        ? { dest: className + '.ts', data: libImport + `import { ${iClassName} } from '${interfaceOrDestination}'\n\n` }
+        ? { dest: className + '.ts', data: libImport + addBreak(`import { ${iClassName} } from '${interfaceOrDestination}'`) }
         : { dest: className + '.ts', data: libImport }
     }
 
@@ -228,7 +220,7 @@ export const generateClass = (className: string, props: string, interfaceOrDesti
         array: `[]`,
     }
 
-    out.data += `\tprivate props: ${iClassName}\n`
+    out.data += addLine(`private props: ${iClassName}`, 1)
     props.split(',').forEach((prop: string) => {
         if (!prop.trim()) { return }
         let [key, type] = prop.replace(/\t|\n/g, '').trim().split(':').map((v: string) => v.trim())
@@ -241,27 +233,37 @@ export const generateClass = (className: string, props: string, interfaceOrDesti
             orUndefined = ' | undefined'
         }
         let properKey = key.slice(0, 1).toUpperCase() + key.slice(1)
-        propInitializer += `\t\t\t\t${key}: ${defaultMap[typeKey]},\n`
-        getters += `\tpublic get${properKey}(): ${type}${orUndefined} {\n\t\treturn this.props.${key}\n\t}\n`
-        setters += `\tpublic set${properKey}(value: ${type}): ${className} {\n\t\tthis.props.${key} = value\n\t\treturn this\n\t}\n`
+        propInitializer += addLine(`${key}: ${defaultMap[typeKey]},`, 4)
+        getters += addLine(`public get${properKey}(): ${type}${orUndefined} {`, 1)
+        getters += addLine(`return this.props.${key}`, 2)
+        getters += addLine(`}`, 1)
+        setters += addLine(`public set${properKey}(value: ${type}): ${className} {`, 1)
+        setters += addLine(`this.props.${key} = value`, 2)
+        setters += addLine(`return this`, 2)
+        setters += addLine(`}`, 1)
     })
 
     // Add a tab level function?
-    construct = `\tpublic constructor(fields?: ${iClassName}) {\n`
-    construct += `\t\tsuper(fields)\n`
-    construct += `\t\tif (fields) {\n`
-    construct += `\t\t\tthis.props = fields\n`
-    construct += `\t\t} else {\n`
-    construct += `\t\t\tthis.props = {\n`
+    construct = addLine(`public constructor(fields?: ${iClassName}) {`, 1)
+    construct += addLine(`super(fields)`, 2)
+    construct += addLine(`if (fields) {`, 2)
+    construct += addLine(`this.props = fields`, 3)
+    construct += addLine(`} else {`, 2)
+    construct += addLine(`this.props = {`, 3)
     construct += propInitializer
-    construct += `\t\t\t}\n`
-    construct += `\t\t}\n`
-    construct += `\t\treturn this\n`
-    construct += `\t}\n`
+    construct += addLine(`}`, 3)
+    construct += addLine(`}`, 2)
+    construct += addLine(`return this`, 2)
+    construct += addLine(`}`, 1)
 
     out.data += construct
     out.data += getters
     out.data += setters
-    out.data += `}\n\n`
+    out.data += addBreak(`}`)
     return out
 }
+
+const addBreak = (line: string, numberOfBreaks: number = 2) => line + new Array(numberOfBreaks).fill('\n').join('')
+const addLine = (line: string, tabs: number = 0, useSpaces: number = 0) => useSpaces 
+    ? new Array(useSpaces * tabs).fill(' ').join('') + line + '\n'
+    : new Array(tabs).fill('\t').join('') + line + '\n'
