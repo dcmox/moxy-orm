@@ -1,7 +1,6 @@
 import assert from 'assert'
-import sinon from 'sinon'
 import * as testData from './testData'
-import * as testSuite from '../lib/moxy-orm'
+import { MoxyORM } from '../moxy-orm'
 
 describe('MoxyORM Test Suite', () => {
     it('Should convert a class into an Interface', () => {
@@ -21,7 +20,7 @@ describe('MoxyORM Test Suite', () => {
                 arr: [5, 4, 3],
             }
         ]
-        let interfaceString = testSuite.interfaceFromDocument('Test', docs)
+        let interfaceString = MoxyORM.interfaceFromDocument('Test', docs)
         assert.equal(interfaceString, testData.interfaceString)
     })
     it(`Should create a class based on a provided interface`, () => {
@@ -36,7 +35,7 @@ describe('MoxyORM Test Suite', () => {
                 {author_id: 3, comment: 'Keep the content coming!'}
             ]
         }]
-        let result = testSuite.documentToClass('Post', doc, './tests/', './lib')
+        let result = MoxyORM.documentToClass('Post', doc, './tests/', './lib')
         assert.equal(result, true)
     })
     it('Should be able to determine the relative or absolute path based on a source and destination', () => {
@@ -44,37 +43,37 @@ describe('MoxyORM Test Suite', () => {
         let expected
 
         // Support for paths in Windows
-        actual = testSuite.importPathToSrc('../a', '/b')
-        expected = process.cwd().replace(/\\/g, '/') + '/a'
+        actual = MoxyORM.importPathToSrc('../a', '/b')
+        expected = MoxyORM.parentDir(process.cwd().replace(/\\/g, '/')) + '/a'
         if (~expected.indexOf(':')) { expected = expected.split(':')[1] }
         expected = '..' + expected
         assert.equal(actual, expected)
 
-        actual = testSuite.importPathToSrc('../lib/interfaces/test', '../generated') 
+        actual = MoxyORM.importPathToSrc('./lib/interfaces/test', './generated') 
         expected = '../lib/interfaces/test'
         assert.equal(actual, expected)
 
-        actual = testSuite.importPathToSrc('../lib/interfaces', '../generated') 
+        actual = MoxyORM.importPathToSrc('../lib/interfaces', '../generated') 
         expected = '../lib/interfaces'
         assert.equal(actual, expected)
 
-        actual = testSuite.importPathToSrc('../lib/interfaces', '../lib/generated') 
+        actual = MoxyORM.importPathToSrc('../lib/interfaces', '../lib/generated') 
         expected = '../interfaces'
         assert.equal(actual, expected)
 
-        actual = testSuite.importPathToSrc('../lib/interfaces', '../misc/generated')
+        actual = MoxyORM.importPathToSrc('../lib/interfaces', '../misc/generated')
         expected = '../../lib/interfaces'
         assert.equal(actual, expected)
 
-        actual = testSuite.importPathToSrc('../lib/interfaces', '../misc/generated/test') 
+        actual = MoxyORM.importPathToSrc('../lib/interfaces', '../misc/generated/test') 
         expected = '../../../lib/interfaces'
         assert.equal(actual, expected)
 
-        actual = testSuite.importPathToSrc('./interfaces/', '../misc/generated')
-        expected = '../../lib/interfaces'
+        actual = MoxyORM.importPathToSrc('./interfaces/', '../misc/generated')
+        expected = '../../moxy-orm/interfaces'
         assert.equal(actual, expected)
 
-        actual = testSuite.importPathToSrc('./lib/interfaces/', './misc/generated') 
+        actual = MoxyORM.importPathToSrc('./lib/interfaces/', './misc/generated') 
         expected = '../../lib/interfaces'
         assert.equal(actual, expected)
     })

@@ -1,8 +1,9 @@
 
+import { MoxyORM } from '../moxy-orm'
 
-import { interfacesToClass } from '../lib/moxy-orm'
+MoxyORM.interfacesToClass('lib/interfaces', 'lib/gen', 'lib') // Generate classes
+
 import { Post } from '../lib/gen/Post'
-//interfacesToClass('lib/interfaces', 'lib/gen', 'lib') // Generate classes
 
 let post = new Post()
                     .setAuthor('Author')

@@ -2,6 +2,14 @@ const fs = require('fs')
 
 export const currentDirectory = (): string => __dirname.indexOf('/') > -1 ? __dirname.split('/').pop() || '' : __dirname.split('\\').pop() || ''
 export const absolutePath = (): string => ~__dirname.indexOf(':') ? __dirname.replace(/\\/g, '/').split(':')[1] : __dirname.replace(/\\/g, '/')
+export const parentDir = (path: string) => {
+    if (~path.indexOf('/')) {
+        let tmp = path.split('/')
+        tmp.pop()
+        return tmp.join('/')
+    }
+    return path
+}
 
 // from any path, eg, an interface file. create an output class that can reference the src.
 export const importPathToSrc = (src: string, dest: string): string => {
@@ -92,14 +100,13 @@ export const interfacesToClass = (src: string, dest?: string, lib?: string) => {
 
 const REGEX_INTERFACE = /interface ([^{]+)? {([^}]+)}/g
 
-// support manual updates to classes -> if re-running the generator, find the extra functions and merge them into the new class.
-// try and support changes to the existing functions if possible. Maybe have functionality to allow data to be formatted like:
-// getFnFormatted() and automatically prefer formatted Function if available.
-
 /* 
-    but I'm going to have it read database tables and generate classes / interfaces as wel
-    will support both mongo DB and MySQL and have a converter to convert SQL to MongoDB and vice versa
+    TODO: 
+        * Add support for reading MySQL schemas (use logic from MoxyPHP)
+        * Build SQL -> MongoDB converter
+        * Build MongoDB -> SQL converter
 */
+
 interface IMongoDocument { [key: string]: any }
 
 export const getTypeFromValue = (value: any): string => {
@@ -243,7 +250,6 @@ export const generateClass = (className: string, props: string, interfaceOrDesti
         setters += addLine(`}`, 1)
     })
 
-    // Add a tab level function?
     construct = addLine(`public constructor(fields?: ${iClassName}) {`, 1)
     construct += addLine(`super(fields)`, 2)
     construct += addLine(`if (fields) {`, 2)
@@ -267,3 +273,13 @@ const addBreak = (line: string, numberOfBreaks: number = 2) => line + new Array(
 const addLine = (line: string, tabs: number = 0, useSpaces: number = 0) => useSpaces 
     ? new Array(useSpaces * tabs).fill(' ').join('') + line + '\n'
     : new Array(tabs).fill('\t').join('') + line + '\n'
+
+export class MoxyORM {
+    static interfacesToClass = interfacesToClass
+    static interfaceFromDocument = interfaceFromDocument
+    static documentToClass = documentToClass
+    static importPathToSrc = importPathToSrc
+    static parentDir = parentDir
+}
+
+export default MoxyORM
