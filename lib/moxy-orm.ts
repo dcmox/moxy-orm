@@ -1,5 +1,79 @@
 const fs = require('fs')
 
+export const currentDirectory = (): string => __dirname.indexOf('/') > -1 ? __dirname.split('/').pop() || '' : __dirname.split('\\').pop() || ''
+export const absolutePath = (): string => ~__dirname.indexOf(':') ? __dirname.replace(/\\/g, '/').split(':')[1] : __dirname.replace(/\\/g, '/')
+
+// from any path, eg, an interface file. create an output class that can reference the src.
+export const importPathToSrc = (src: string, dest: string): string => {
+    if (src.startsWith('/')) { return src }
+    // Paths must be consistent
+    if (src.endsWith('/')) { src = src.slice(0, src.length - 1) }
+    if (dest.endsWith('/')) { dest = dest.slice(0, dest.length - 1) }
+
+    // Force src to be whole path
+    if (dest.startsWith('/') || dest.startsWith('\\')) { 
+        let path: any = absolutePath() 
+        if (src.startsWith('./')) {
+            src = path + src.slice(1)
+        } else if (src.startsWith('..')) {
+            let nodes = src.split('/')
+            path = path.split('/')
+            for (let i = 0; i < nodes.length; i++) {
+                if (nodes[i] === '..') { 
+                    nodes.shift()
+                    path.pop()
+                } 
+                else { 
+                    break 
+                }
+            }
+            src = path.join('/') + '/' + nodes.join('/')
+        } else {
+            src = path + src
+        }
+    }
+
+    if (!src.startsWith('.') && !src.startsWith('/')) { src = './' + src }
+    if (!dest.startsWith('.') && !dest.startsWith('/') && !dest.startsWith('\\')) { dest = './' + dest }
+
+    // Split paths into nodes
+    let srcNodes = src.split('/')
+    let destNodes = dest.split('/')
+
+    let srcRoot: string = srcNodes[0]
+    let destRoot: string = destNodes[0]
+
+    let pathNodes: string[] = []
+
+    // More normalization of root
+    if (srcRoot === '.' && destRoot !== '.') {
+        let cdir: string = currentDirectory()
+        if (!cdir) { return '' }
+        srcNodes = [srcRoot, cdir, ...srcNodes.slice(1)]
+        srcRoot = '..'
+    } else if (destRoot === '.' && srcRoot !== '.') {
+        let cdir: string = currentDirectory()
+        if (!cdir) { return '' }
+        destNodes = [srcRoot, cdir, ...destNodes.slice(1)]
+        destRoot = '..'
+    }
+
+    if (srcRoot === destRoot) {
+        if (destNodes.length >= srcNodes.length) {
+            let i = 1
+            for (;i < srcNodes.length; i++) { if (srcNodes[i] != destNodes[i]) { break } }
+            pathNodes = [...new Array(destNodes.length - i).fill('..')]
+            for (;i < srcNodes.length; i++) { pathNodes.push(srcNodes[i]) }
+        } else {
+            let i = 1
+            for (;i < destNodes.length; i++) { if (destNodes[i] != srcNodes[i]) { break } }
+            pathNodes = [...new Array(destNodes.length - i).fill('..')]
+            for (;i < srcNodes.length; i++) { pathNodes.push(srcNodes[i]) }
+        }
+    }
+    return pathNodes.join('/')
+}
+
 export const interfacesToClass = (src: string) => {
     const path: string = src.substring(-1) === '/' ? src : `${src}/`
     let dest: any = path.split('/')
@@ -120,13 +194,15 @@ interface IGenerateClassOutput {
     FileA:
     import { blah } from '../../path/to/lib/'
 */
+
+
 /* Allow path to be defined to export */
 export const generateClass = (className: string, props: string, interfaceOrImport?: string, iClassName?: string): IGenerateClassOutput => {
     if (!iClassName) { iClassName = className }
     let out: IGenerateClassOutput
     let dbModelImport: string = `import { DBModel } from './DBModel'\n`
     if (interfaceOrImport && ~interfaceOrImport.indexOf('{')) {
-        out = { dest: className + '.ts', data: dbModelImport + `${interfaceOrImport}\n` }
+        out = { dest: className + '.ts', data: dbModelImport + `\n${interfaceOrImport}\n\n` }
     } else {
         out = interfaceOrImport
         ? { dest: className + '.ts', data: dbModelImport + `import { ${iClassName} } from '${interfaceOrImport}'\n\n` }
@@ -142,13 +218,17 @@ export const generateClass = (className: string, props: string, interfaceOrImpor
     let defaultMap: any = {
         string: `''`,
         number: `0`,
-        boolean: `false`
+        boolean: `false`,
+        date: `new Date()`,
+        array: `[]`,
     }
 
     out.data += `\tprivate props: ${iClassName}\n`
     props.split(',').forEach((prop: string) => {
         if (!prop.trim()) { return }
         let [key, type] = prop.replace(/\t|\n/g, '').trim().split(':').map((v: string) => v.trim())
+        let typeKey = type.toLowerCase()
+        if (typeKey.indexOf('[]') !== -1) { typeKey = 'array' }
         let isOptional = key.indexOf('?') > -1
         let orUndefined:string = ''
         if (isOptional) { 
@@ -156,11 +236,12 @@ export const generateClass = (className: string, props: string, interfaceOrImpor
             orUndefined = ' | undefined'
         }
         let properKey = key.slice(0, 1).toUpperCase() + key.slice(1)
-        propInitializer += `\t\t\t\t${key}: ${defaultMap[type]},\n`
+        propInitializer += `\t\t\t\t${key}: ${defaultMap[typeKey]},\n`
         getters += `\tpublic get${properKey}(): ${type}${orUndefined} {\n\t\treturn this.props.${key}\n\t}\n`
         setters += `\tpublic set${properKey}(value: ${type}): ${className} {\n\t\tthis.props.${key} = value\n\t\treturn this\n\t}\n`
     })
 
+    // Add a tab level function?
     construct = `\tpublic constructor(fields?: ${iClassName}) {\n`
     construct += `\t\tsuper(fields)\n`
     construct += `\t\tif (fields) {\n`

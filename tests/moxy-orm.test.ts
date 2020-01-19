@@ -39,4 +39,43 @@ describe('MoxyORM Test Suite', () => {
         let result = testSuite.documentToClass('Post', doc, './tests/')
         assert.equal(result, true)
     })
+    it('Should be able to determine the relative or absolute path based on a source and destination', () => {
+        let actual
+        let expected
+
+        // Support for paths in Windows
+        actual = testSuite.importPathToSrc('../a', '/b')
+        expected = process.cwd().replace(/\\/g, '/') + '/a'
+        if (~expected.indexOf(':')) { expected = expected.split(':')[1] }
+        expected = '..' + expected
+        assert.equal(actual, expected)
+
+        actual = testSuite.importPathToSrc('../lib/interfaces/test', '../generated') 
+        expected = '../lib/interfaces/test'
+        assert.equal(actual, expected)
+
+        actual = testSuite.importPathToSrc('../lib/interfaces', '../generated') 
+        expected = '../lib/interfaces'
+        assert.equal(actual, expected)
+
+        actual = testSuite.importPathToSrc('../lib/interfaces', '../lib/generated') 
+        expected = '../interfaces'
+        assert.equal(actual, expected)
+
+        actual = testSuite.importPathToSrc('../lib/interfaces', '../misc/generated')
+        expected = '../../lib/interfaces'
+        assert.equal(actual, expected)
+
+        actual = testSuite.importPathToSrc('../lib/interfaces', '../misc/generated/test') 
+        expected = '../../../lib/interfaces'
+        assert.equal(actual, expected)
+
+        actual = testSuite.importPathToSrc('./interfaces/', '../misc/generated')
+        expected = '../../lib/interfaces'
+        assert.equal(actual, expected)
+
+        actual = testSuite.importPathToSrc('./lib/interfaces/', './misc/generated') 
+        expected = '../../lib/interfaces'
+        assert.equal(actual, expected)
+    })
 })
