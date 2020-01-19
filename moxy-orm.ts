@@ -1,8 +1,12 @@
 const fs = require('fs')
 
+interface IMongoDocument { [key: string]: any }
+interface IGenerateClassOutput { dest: string, data: string }
+const REGEX_INTERFACE = /interface ([^{]+)? {([^}]+)}/g
+
 export const currentDirectory = (): string => __dirname.indexOf('/') > -1 ? __dirname.split('/').pop() || '' : __dirname.split('\\').pop() || ''
 export const absolutePath = (): string => ~__dirname.indexOf(':') ? __dirname.replace(/\\/g, '/').split(':')[1] : __dirname.replace(/\\/g, '/')
-export const parentDir = (path: string) => {
+export const parentDir = (path: string): string => {
     if (~path.indexOf('/')) {
         let tmp = path.split('/')
         tmp.pop()
@@ -10,6 +14,11 @@ export const parentDir = (path: string) => {
     }
     return path
 }
+
+const addBreak = (line: string, numberOfBreaks: number = 2) => line + new Array(numberOfBreaks).fill('\n').join('')
+const addLine = (line: string, tabs: number = 0, useSpaces: number = 0) => useSpaces 
+    ? new Array(useSpaces * tabs).fill(' ').join('') + line + '\n'
+    : new Array(tabs).fill('\t').join('') + line + '\n'
 
 // from any path, eg, an interface file. create an output class that can reference the src.
 export const importPathToSrc = (src: string, dest: string): string => {
@@ -82,13 +91,11 @@ export const importPathToSrc = (src: string, dest: string): string => {
     return pathNodes.join('/')
 }
 
-export const interfacesToClass = (src: string, dest?: string, lib?: string) => {
-    const path: string = src.substring(-1) === '/' ? src : `${src}/`
+export const interfacesToClass = (src: string, dest?: string, lib?: string): boolean => {
     if (dest === undefined) { dest = `${src}/gen` }
     if (lib === undefined) { lib = `${src}` }
     let interfaces: any[] = fs.readdirSync(src)
     interfaces.forEach((f: string) => {
-        //const imp: string = `${folder}/${f.replace('.ts', '')}`
         const fp: string = `${src}/${f}`
         const contents: any[] = fileToClass(fp, dest || '', lib || '')
         contents.forEach((content: any) => {
@@ -97,17 +104,6 @@ export const interfacesToClass = (src: string, dest?: string, lib?: string) => {
     })
     return true
 }
-
-const REGEX_INTERFACE = /interface ([^{]+)? {([^}]+)}/g
-
-/* 
-    TODO: 
-        * Add support for reading MySQL schemas (use logic from MoxyPHP)
-        * Build SQL -> MongoDB converter
-        * Build MongoDB -> SQL converter
-*/
-
-interface IMongoDocument { [key: string]: any }
 
 export const getTypeFromValue = (value: any): string => {
     let type: string = 'any'
@@ -192,11 +188,6 @@ export const contentsToClass = (contents: string, interfaceOrDestination: string
     return output
 }
 
-interface IGenerateClassOutput {
-    dest: string,
-    data: string
-}
-
 /* Allow path to be defined to export */
 export const generateClass = (className: string, props: string, interfaceOrDestination?: string, lib?: string, iClassName?: string): IGenerateClassOutput => {
     if (!iClassName) { iClassName = className }
@@ -213,7 +204,7 @@ export const generateClass = (className: string, props: string, interfaceOrDesti
         : { dest: className + '.ts', data: libImport }
     }
 
-    // extends DBModel 
+    // Extends DBModel 
     out.data += `export class ${className} extends DBModel {\n`
     let getters: string = ''
     let setters: string = ''
@@ -268,11 +259,6 @@ export const generateClass = (className: string, props: string, interfaceOrDesti
     out.data += addBreak(`}`)
     return out
 }
-
-const addBreak = (line: string, numberOfBreaks: number = 2) => line + new Array(numberOfBreaks).fill('\n').join('')
-const addLine = (line: string, tabs: number = 0, useSpaces: number = 0) => useSpaces 
-    ? new Array(useSpaces * tabs).fill(' ').join('') + line + '\n'
-    : new Array(tabs).fill('\t').join('') + line + '\n'
 
 export class MoxyORM {
     static interfacesToClass = interfacesToClass

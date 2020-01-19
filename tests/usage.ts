@@ -1,6 +1,7 @@
 
 import { MoxyORM } from '../moxy-orm'
 
+// src, dest, lib (dependencies)
 MoxyORM.interfacesToClass('lib/interfaces', 'lib/gen', 'lib') // Generate classes
 
 import { Post } from '../lib/gen/Post'

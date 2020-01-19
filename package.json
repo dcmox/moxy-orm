@@ -20,7 +20,7 @@
   "scripts": {
     "test": "jest tests/*",
     "build": "npm run build:main && npm run build:demo && npm run build:interfaces",
-    "build:main": "tsc lib/moxy-orm.ts",
+    "build:main": "tsc moxy-orm.ts",
     "build:interfaces": "tsc lib/interfaces/interfaces.ts",
     "build:demo": "tsc tests/usage.ts",
     "watch": "tsc -w tests/usage.ts",
