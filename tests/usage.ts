@@ -63,7 +63,7 @@ interface IGenerateClassOutput {
 const generateClass = (className: string, props: string, interfaceOrImport?: string, iClassName?: string): IGenerateClassOutput => {
     if (!iClassName) { iClassName = className }
     let out: IGenerateClassOutput
-    let dbModelImport: string = `import { DBModel } from 'DBModel'\n`
+    let dbModelImport: string = `import { DBModel } from './DBModel'\n`
     if (interfaceOrImport && ~interfaceOrImport.indexOf('{')) {
         out = { dest: className + '.ts', data: `${interfaceOrImport}` }
     } else {

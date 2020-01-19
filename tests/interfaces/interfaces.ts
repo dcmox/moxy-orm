@@ -12,3 +12,4 @@ export interface IPost {
     body: string,
     likes?: number,
 }
+
