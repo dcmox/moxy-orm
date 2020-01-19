@@ -1,13 +1,5 @@
-import { DBModel } from '../lib/DBModel'
-
-interface IPost {
-	date: Date,
-	author_id: number,
-	author: string,
-	body: string,
-	likes: number,
-	comments: any[],
-}
+import { DBModel } from '../DBModel'
+import { IPost } from '../interfaces/interfaces'
 
 export class Post extends DBModel {
 	private props: IPost
@@ -17,21 +9,20 @@ export class Post extends DBModel {
 			this.props = fields
 		} else {
 			this.props = {
-				date: new Date(),
-				author_id: 0,
+				id: 0,
+				title: '',
 				author: '',
 				body: '',
 				likes: 0,
-				comments: [],
 			}
 		}
 		return this
 	}
-	public getDate(): Date {
-		return this.props.date
+	public getId(): number {
+		return this.props.id
 	}
-	public getAuthor_id(): number {
-		return this.props.author_id
+	public getTitle(): string {
+		return this.props.title
 	}
 	public getAuthor(): string {
 		return this.props.author
@@ -39,18 +30,15 @@ export class Post extends DBModel {
 	public getBody(): string {
 		return this.props.body
 	}
-	public getLikes(): number {
+	public getLikes(): number | undefined {
 		return this.props.likes
 	}
-	public getComments(): any[] {
-		return this.props.comments
-	}
-	public setDate(value: Date): Post {
-		this.props.date = value
+	public setId(value: number): Post {
+		this.props.id = value
 		return this
 	}
-	public setAuthor_id(value: number): Post {
-		this.props.author_id = value
+	public setTitle(value: string): Post {
+		this.props.title = value
 		return this
 	}
 	public setAuthor(value: string): Post {
@@ -63,10 +51,6 @@ export class Post extends DBModel {
 	}
 	public setLikes(value: number): Post {
 		this.props.likes = value
-		return this
-	}
-	public setComments(value: any[]): Post {
-		this.props.comments = value
 		return this
 	}
 }
