@@ -20,8 +20,8 @@ export const parentDir = (path: string): string => {
     return path
 }
 
-const addBreak = (line: string, numberOfBreaks: number = 2) => line + new Array(numberOfBreaks).fill('\n').join('')
-const addLine = (line: string, tabs: number = 0, useSpaces: number = 0) => useSpaces 
+export const addBreak = (line: string, numberOfBreaks: number = 2) => line + new Array(numberOfBreaks).fill('\n').join('')
+export const addLine = (line: string, tabs: number = 0, useSpaces: number = 0) => useSpaces 
     ? new Array(useSpaces * tabs).fill(' ').join('') + line + '\n'
     : new Array(tabs).fill('\t').join('') + line + '\n'
 
@@ -33,8 +33,15 @@ export const importPathToSrc = (src: string, dest: string): string => {
     if (dest.endsWith('/')) { dest = dest.slice(0, dest.length - 1) }
 
     // Force src to be whole path
-    if (dest.startsWith('/') || dest.startsWith('\\')) { 
-        let path: any = absolutePath() 
+    let diffDrive: boolean = false
+    if (dest.startsWith('/') || dest.startsWith('\\') || ~dest.indexOf(':')) { 
+        let path: any = absolutePath()
+        if (~path.indexOf(':') && dest.indexOf(':') === -1) { 
+            dest = path.split(':')[0] + ':' + dest 
+        } else if (~path.indexOf(':') && ~dest.indexOf(':')) {
+            diffDrive = true
+        }
+        
         if (src.startsWith('./')) {
             src = path + src.slice(1)
         } else if (src.startsWith('..')) {
@@ -54,9 +61,11 @@ export const importPathToSrc = (src: string, dest: string): string => {
             src = path + src
         }
     }
+    
+    if (diffDrive) { return src }
 
-    if (!src.startsWith('.') && !src.startsWith('/')) { src = './' + src }
-    if (!dest.startsWith('.') && !dest.startsWith('/') && !dest.startsWith('\\')) { dest = './' + dest }
+    if (!src.startsWith('.') && !src.startsWith('/') && !~src.indexOf(':')) { src = './' + src }
+    if (!dest.startsWith('.') && !dest.startsWith('/') && !dest.startsWith('\\') && !~dest.indexOf(':')) { dest = './' + dest }
 
     // Split paths into nodes
     let srcNodes = src.split('/')
@@ -76,7 +85,7 @@ export const importPathToSrc = (src: string, dest: string): string => {
     } else if (destRoot === '.' && srcRoot !== '.') {
         let cdir: string = currentDirectory()
         if (!cdir) { return '' }
-        destNodes = [srcRoot, cdir, ...destNodes.slice(1)]
+        destNodes = [destRoot, cdir, ...destNodes.slice(1)]
         destRoot = '..'
     }
 
@@ -87,12 +96,14 @@ export const importPathToSrc = (src: string, dest: string): string => {
             pathNodes = [...new Array(destNodes.length - i).fill('..')]
             for (;i < srcNodes.length; i++) { pathNodes.push(srcNodes[i]) }
         } else {
+            if (~destRoot.indexOf(':')) { return '/' + srcNodes.slice(1).join('/') }
             let i = 1
             for (;i < destNodes.length; i++) { if (destNodes[i] != srcNodes[i]) { break } }
             pathNodes = [...new Array(destNodes.length - i).fill('..')]
             for (;i < srcNodes.length; i++) { pathNodes.push(srcNodes[i]) }
         }
     }
+
     return pathNodes.join('/')
 }
 
@@ -143,7 +154,7 @@ export const getTypeFromValue = (value: any): string => {
 
 // If multiple documents, populate as many fields as possible
 export const interfaceFromDocument = (collectionName: string, docs: any) => {
-    let docInterface: string = `interface ${collectionName} {\n`
+    let docInterface: string = addLine(`interface ${collectionName} {`)
     let document: IMongoDocument = {}
     docs.forEach((doc: any) => { document = Object.assign(document, doc) })
     Object.keys(document).forEach((key: string) => {
@@ -151,7 +162,7 @@ export const interfaceFromDocument = (collectionName: string, docs: any) => {
         if (type === 'object') {
             type = getTypeFromValue(document[key])
         }
-        docInterface += `\t${key}: ${type},\n`
+        docInterface += addLine(`${key}: ${type},`, 1)
     })
     docInterface += `}`
     return docInterface

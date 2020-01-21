@@ -38,43 +38,51 @@ describe('MoxyORM Test Suite', () => {
         let result = MoxyORM.documentToClass('Post', doc, './tests/', './lib')
         assert.equal(result, true)
     })
+
     it('Should be able to determine the relative or absolute path based on a source and destination', () => {
         let actual
         let expected
-
+        
         // Support for paths in Windows
+        actual = MoxyORM.importPathToSrc('../a', 'D:/b')
+        expected = MoxyORM.parentDir(process.cwd().replace(/\\/g, '/')) + '/a'
+        assert.equal(actual, expected, 'Different drives')
+
         actual = MoxyORM.importPathToSrc('../a', '/b')
         expected = MoxyORM.parentDir(process.cwd().replace(/\\/g, '/')) + '/a'
         if (~expected.indexOf(':')) { expected = expected.split(':')[1] }
-        expected = '..' + expected
-        assert.equal(actual, expected)
+        assert.equal(actual, expected, 'Absolute vs relative path')
 
         actual = MoxyORM.importPathToSrc('./lib/interfaces/test', './generated') 
         expected = '../lib/interfaces/test'
-        assert.equal(actual, expected)
+        assert.equal(actual, expected, 'Different paths in the current folder')
 
         actual = MoxyORM.importPathToSrc('../lib/interfaces', '../generated') 
         expected = '../lib/interfaces'
-        assert.equal(actual, expected)
+        assert.equal(actual, expected, 'Different paths in the previous folder')
 
         actual = MoxyORM.importPathToSrc('../lib/interfaces', '../lib/generated') 
         expected = '../interfaces'
-        assert.equal(actual, expected)
+        assert.equal(actual, expected, 'Different paths in the previous folder test 2')
 
         actual = MoxyORM.importPathToSrc('../lib/interfaces', '../misc/generated')
         expected = '../../lib/interfaces'
-        assert.equal(actual, expected)
+        assert.equal(actual, expected, 'Different paths in the previous folder test 3')
 
         actual = MoxyORM.importPathToSrc('../lib/interfaces', '../misc/generated/test') 
         expected = '../../../lib/interfaces'
-        assert.equal(actual, expected)
+        assert.equal(actual, expected, 'Different paths in the previous folder test 4')
 
         actual = MoxyORM.importPathToSrc('./interfaces/', '../misc/generated')
         expected = '../../moxy-orm/interfaces'
-        assert.equal(actual, expected)
+        assert.equal(actual, expected, 'Different paths current and previous folder')
 
         actual = MoxyORM.importPathToSrc('./lib/interfaces/', './misc/generated') 
         expected = '../../lib/interfaces'
-        assert.equal(actual, expected)
+        assert.equal(actual, expected, 'Different paths in the current folder')
+
+        actual = MoxyORM.importPathToSrc('../lib/interfaces/', '../../misc/generated') 
+        expected = '../../../lib/interfaces'
+        assert.equal(actual, expected, 'Different paths in previous folders')
     })
 })
