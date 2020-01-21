@@ -11,3 +11,6 @@ let post = new Post()
                     .setBody('Hello World!')
 
 console.log(post.getAuthor(), 'says:', post.getBody())
+
+MoxyORM.sqlSchemaToClasses('tests/sql/test.sql', 'lib/gen', 'lib')
+

@@ -5,9 +5,16 @@
 
 const fs = require('fs')
 
-interface IMongoDocument { [key: string]: any }
-interface IGenerateClassOutput { dest: string, data: string }
+export interface IMongoDocument { [key: string]: any }
+export interface IGenerateClassOutput { dest: string, data: string }
+
 const REGEX_INTERFACE = /interface ([^{]+)? {([^}]+)}/g
+const REGEX_SQL_TABLES = /CREATE TABLE (?:`|')?([a-zA-Z0-9_-]+)(?:`|')? \(([^;]*)\)(.*);?/g
+const REGEX_SQL_FIELDS = /(?:`|')?(?: *)([a-zA-Z0-9_-]*)(?:`|')? ([a-zA-Z0-9_-]+)(\(.*\))? ?([a-zA-Z0-9_\- +'"`.(,)]*)?,?/g
+const MOXY_HEADER = `/*\tClass generation courtesy of MoxyORM\n*\thttps://github.com/dcmox/moxy-orm\n***/\n\n`
+
+export const pascalCase = (s: string): string => s.replace(/_/g, ' ').split(' ').map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)).join('')
+export const camelCase = (s: string): string => s.replace(/_/g, ' ').split(' ').map((s: string, i: number) => i === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1)).join('')
 
 export const currentDirectory = (): string => __dirname.indexOf('/') > -1 ? __dirname.split('/').pop() || '' : __dirname.split('\\').pop() || ''
 export const absolutePath = (): string => __dirname.replace(/\\/g, '/')
@@ -61,7 +68,7 @@ export const importPathToSrc = (src: string, dest: string): string => {
             src = path + src
         }
     }
-    
+
     if (diffDrive) { return src }
 
     if (!src.startsWith('.') && !src.startsWith('/') && !~src.indexOf(':')) { src = './' + src }
@@ -213,11 +220,11 @@ export const generateClass = (className: string, props: string, interfaceOrDesti
         libImport = addLine(`import { DBModel } from '${lib}/DBModel'`)
     }
     if (interfaceOrDestination && ~interfaceOrDestination.indexOf('{')) {
-        out = { dest: className + '.ts', data: libImport + `\n${interfaceOrDestination}\n\n` }
+        out = { dest: className + '.ts', data: MOXY_HEADER + libImport + `\n${interfaceOrDestination}\n\n` }
     } else {
         out = interfaceOrDestination
-        ? { dest: className + '.ts', data: libImport + addBreak(`import { ${iClassName} } from '${interfaceOrDestination}'`) }
-        : { dest: className + '.ts', data: libImport }
+        ? { dest: className + '.ts', data: MOXY_HEADER + libImport + addBreak(`import { ${iClassName} } from '${interfaceOrDestination}'`) }
+        : { dest: className + '.ts', data: MOXY_HEADER + libImport }
     }
 
     // Extends DBModel 
@@ -246,7 +253,9 @@ export const generateClass = (className: string, props: string, interfaceOrDesti
             key = key.substring(0, key.length - 1) 
             orUndefined = ' | undefined'
         }
-        let properKey = key.slice(0, 1).toUpperCase() + key.slice(1)
+        // enum
+        if (typeKey.startsWith('E')) { typeKey = 'number' }
+        let properKey = pascalCase(key)
         propInitializer += addLine(`${key}: ${defaultMap[typeKey]},`, 4)
         getters += addLine(`public get${properKey}(): ${type}${orUndefined} {`, 1)
         getters += addLine(`return this.props.${key}`, 2)
@@ -276,12 +285,81 @@ export const generateClass = (className: string, props: string, interfaceOrDesti
     return out
 }
 
+export const SqlTypeMap: any = {
+    'string': ['varbinary', 'binary', 'time', 'char', 'varchar', 'tinytext', 'longtext', 'text'],
+    'number': ['decimal', 'numeric', 'float', 'double', 'precision', 'tinyint', 'int', 'smallint', 'mediumint', 'year'],
+    'date': ['timestamp', 'datetime', 'date'],
+    'blob': ['blob', 'tinyblob', 'mediumblob', 'longblob'],
+    'bigint': 'BigInt',
+    'boolean': 'boolean',
+}
+
+export const valuesFromSetOrEnum = (cond: string): string[] => {
+    cond = cond.replace(/\(|\)|'/g, '')
+    if (cond.indexOf(',') === -1) { return [cond] }
+    return cond.split(',')
+}
+
+export const getTypeFromSqlType = (field: string, type: string, cond: string): string => {   
+    if (SqlTypeMap.string.includes(type)) { return 'string' }
+    if (SqlTypeMap.number.includes(type)) { return 'number' }
+    if (SqlTypeMap.date.includes(type)) { return 'Date' }
+    if (SqlTypeMap.blob.includes(type)) { return 'Blob' }
+    if (type === 'set') { 
+        let values = valuesFromSetOrEnum(cond)
+        if (values.length === 1) { return `Set<${getTypeFromValue(values[0])}>` }
+        let type = getTypeFromValue(values[0])
+        for (let i = 1; i < values.length; i++) if (getTypeFromValue(values[i]) !== type) { return 'Set<any>' }
+        return `Set<${type}>`
+    }
+    if (type === 'enum') { return 'E' + pascalCase(field) }
+    if (SqlTypeMap[type]) { return SqlTypeMap[type] }
+    return 'any'
+} 
+
+export const interfaceFromTable = (tableName: string, fields: string) => {
+    let typeDeclarations: string = ''
+    let docInterface: string = addLine(`interface I${pascalCase(tableName)} {`)
+    let r = new RegExp(REGEX_SQL_FIELDS)
+    let match 
+    while ((match = r.exec(fields))) {
+        let [, field, sqlType, cond, opts] = match
+        let type = getTypeFromSqlType(field, sqlType.toLowerCase(), cond)
+        if (sqlType === 'enum') {
+            typeDeclarations += addLine(`enum ${type} {`)
+            let values = valuesFromSetOrEnum(cond)
+            values.forEach((value: string) => typeDeclarations += addLine(value + ',', 1))
+            typeDeclarations += addBreak('}')
+        }
+        if (field && !['PRIMARY', 'UNIQUE', 'KEY'].includes(field)) { docInterface += addLine(`${field}: ${type},`, 1) }
+    }
+    docInterface += addLine('}')
+
+    return typeDeclarations + docInterface
+}
+
+export const sqlSchemaToClasses = (schema: string, dest: string, lib: string) => {
+    let sql: string = fs.readFileSync(schema).toString().replace(/create table/gi, 'CREATE TABLE')
+    let re: RegExp = new RegExp(REGEX_SQL_TABLES)
+    let match: any
+
+    while ((match = re.exec(sql))) {
+        let [, tableName, fields] = match
+        const interfaceFromTbl = interfaceFromTable(tableName, fields)
+        let data = contentsToClass(interfaceFromTbl, interfaceFromTbl, lib || '', 'I')
+        data.forEach((out: IGenerateClassOutput) => fs.writeFileSync(`${dest}/${out.dest}`, out.data))
+    }
+
+    return true
+}
+
 export class MoxyORM {
     static interfacesToClass = interfacesToClass
     static interfaceFromDocument = interfaceFromDocument
     static documentToClass = documentToClass
     static importPathToSrc = importPathToSrc
     static parentDir = parentDir
+    static sqlSchemaToClasses = sqlSchemaToClasses
 }
 
 export default MoxyORM
