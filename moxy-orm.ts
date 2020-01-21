@@ -10,7 +10,7 @@ interface IGenerateClassOutput { dest: string, data: string }
 const REGEX_INTERFACE = /interface ([^{]+)? {([^}]+)}/g
 
 export const currentDirectory = (): string => __dirname.indexOf('/') > -1 ? __dirname.split('/').pop() || '' : __dirname.split('\\').pop() || ''
-export const absolutePath = (): string => ~__dirname.indexOf(':') ? __dirname.replace(/\\/g, '/').split(':')[1] : __dirname.replace(/\\/g, '/')
+export const absolutePath = (): string => __dirname.replace(/\\/g, '/')
 export const parentDir = (path: string): string => {
     if (~path.indexOf('/')) {
         let tmp = path.split('/')
@@ -27,7 +27,7 @@ const addLine = (line: string, tabs: number = 0, useSpaces: number = 0) => useSp
 
 // from any path, eg, an interface file. create an output class that can reference the src.
 export const importPathToSrc = (src: string, dest: string): string => {
-    if (src.startsWith('/')) { return src }
+    if (src.startsWith('/') || ~src.indexOf(':')) { return src }
     // Paths must be consistent
     if (src.endsWith('/')) { src = src.slice(0, src.length - 1) }
     if (dest.endsWith('/')) { dest = dest.slice(0, dest.length - 1) }
