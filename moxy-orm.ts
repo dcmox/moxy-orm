@@ -4,6 +4,7 @@
  * **/
 
 const fs = require('fs')
+const _f = require('underscore-functions')._f
 
 export interface IMongoDocument { [key: string]: any }
 export interface IGenerateClassOutput { dest: string, data: string }
@@ -353,6 +354,45 @@ export const sqlSchemaToClasses = (schema: string, dest: string, lib: string) =>
     return true
 }
 
+const formTypeMap: any = {
+    password: 'password',
+    radio: 'radio'
+}
+
+export const documentToHtml = (doc: IMongoDocument, formId?: string, indentLevel: number = 0, group?: string): string => {
+    let html: string = ''
+    if (formId) { html += addLine(`<form id="${formId}">`) }
+    const keys = Object.keys(doc)
+    keys.forEach((key: string) => {
+        if (toString.call(doc[key]) === "[object Object]") {
+            html += addLine(`<fieldset>`, 1 + indentLevel)
+            html += addLine(`<legend>${key}</legend>`, 2 + indentLevel)
+            html += addLine(`<p>`, 2 + indentLevel)
+            html += documentToHtml(doc[key], undefined, 2 + indentLevel, key)
+            html += addLine(`</p>`, 2 + indentLevel)
+            html += addLine(`</fieldset>`, 1 + indentLevel)
+        } else {
+            
+            const type = formTypeMap[key]
+                ? formTypeMap[key]
+                : formTypeMap[doc[key]]
+                ? formTypeMap[doc[key]]
+                : getTypeFromValue(doc[key]).toLowerCase()
+            if (type === 'radio') {
+                html += addLine(`<label for="${key}">${_f.keyToField(key)}</label><input type="radio" name="${group}[]" value="" class="input-${type}" />`, 2 + indentLevel)
+            } else {
+                html += addLine(`<p>`, 1 + indentLevel)
+                html += addLine(`<label for="${key}">${_f.keyToField(key)}</label><input name="${key}" type="text" value="" class="input-${type}" />`, 2 + indentLevel)
+                html += addLine(`</p>`, 1 + indentLevel)
+            }
+            
+            
+        }
+    })
+    if (formId) { html += addLine(`</form>`) }
+    return html
+}
+
 export class MoxyORM {
     static interfacesToClass = interfacesToClass
     static interfaceFromDocument = interfaceFromDocument
@@ -360,6 +400,7 @@ export class MoxyORM {
     static importPathToSrc = importPathToSrc
     static parentDir = parentDir
     static sqlSchemaToClasses = sqlSchemaToClasses
+    static documentToHtml = documentToHtml
 }
 
 export default MoxyORM

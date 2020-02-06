@@ -14,3 +14,14 @@ console.log(post.getAuthor(), 'says:', post.getBody())
 
 MoxyORM.sqlSchemaToClasses('tests/sql/test.sql', 'lib/gen', 'lib')
 
+const doc = {
+    date: new Date(),
+    username: 'Test',
+    password: 'Password',
+    subscriptions: {
+        monthly_membership: 'radio',
+        yearly_membership: 'radio'
+    }
+}
+
+console.log(MoxyORM.documentToHtml(doc, 'test'))
