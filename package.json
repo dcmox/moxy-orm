@@ -24,7 +24,7 @@
     "build:interfaces": "tsc lib/interfaces/interfaces.ts",
     "build:demo": "tsc tests/usage.ts",
     "watch": "tsc -w tests/usage.ts",
-    "test-usage": "node tests/usage.js"
+    "test-usage": "node moxy-orm.js"
   },
   "repository": {
     "type": "git",
@@ -45,5 +45,8 @@
   "bugs": {
     "url": "https://github.com/dcmox/moxy-orm/issues"
   },
-  "homepage": "https://github.com/dcmox/moxy-orm#readme"
+  "homepage": "https://github.com/dcmox/moxy-orm#readme",
+  "dependencies": {
+    "underscore-functions": "^0.5.7"
+  }
 }
